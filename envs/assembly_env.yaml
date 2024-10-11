@@ -1,0 +1,16 @@
+name: assembly_env
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - any2fasta=0.4.2
+  - assembly-scan=0.4.1
+  - bcftools=1.14
+  - biopython=1.79
+  - blast=2.12.0
+  - minimap2=2.24
+  - samtools=1.15
+  - shovill-se=1.1.0se
+  - skesa=2.4.0
+  - spades=3.15.4
+  - unicycler=0.5.0
