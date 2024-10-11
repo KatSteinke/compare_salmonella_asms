@@ -54,6 +54,31 @@ rule assemble_ilm:
 
 # ...but we may want to do some cleaning for the short read polishing anyway? TODO: cannibalize from RSYD-BASIC if so
 
+# long read first: just stay with flye
+rule trim_adapter:
+    input:
+        reads_ont = lambda wildcards: snake_helpers.get_reads_from_overview(wildcards.sample,
+                    input_data,
+            "extra")
+    output:
+        reads_chopped = "reads/{sample}_trim.fastq.gz"
+    conda: pathlib.Path(workflow.current_basedir) / "nanopore_env.yaml"
+    shell:
+        """porechop -i "{input.reads_ont}" -o "{output.reads_chopped}" """
+
+#... but we'll do filtering with filtlong
+rule filter_ont:
+    input:
+        reads_chopped = "reads/{sample}_trim.fastq.gz"
+    output:
+        reads_filtered = "reads/{sample}_filtered.fastq.gz"
+    params:
+        keep_percent = 95
+    conda: pathlib.Path(workflow.current_basedir) / "nanopore_env.yaml"
+    shell:
+        """filtlong --keep_percent {params.keep_percent} "{input.reads_chopped}" | gzip > "{output.reads_filtered}" """
+
+
 rule assemble_short_read_first:
     input:
         reads_r1=lambda wildcards: snake_helpers.get_reads_from_overview(wildcards.sample,
@@ -62,9 +87,7 @@ rule assemble_short_read_first:
         reads_r2=lambda wildcards: snake_helpers.get_reads_from_overview(wildcards.sample,
             input_data,
             "r2"),
-        reads_ont = lambda wildcards: snake_helpers.get_reads_from_overview(wildcards.sample,
-            input_data,
-            "extra")
+        reads_ont = "reads/{sample}_filtered.fastq.gz"
     params:
         outdir = "assembly/sf_unicycler"
     output:
@@ -81,7 +104,9 @@ rule assemble_short_read_first:
         mv "{params.outdir}/unicycler.log" "{log}"
         """
 
-# they presumably have done this on raw reads, there's not much we can do there
+
+
+# they presumably have done this on raw reads, there's not much we can do there - TODO no they don't, we might try that too?
 rule run_seqsero2:
     input:
         assembly  = "assembly/{assembler}/{sample}_{assembler}.fna"

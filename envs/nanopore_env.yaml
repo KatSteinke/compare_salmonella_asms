@@ -1,0 +1,8 @@
+name: nanopore_env
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - flye==2.5
+  - filtlong
+  - porechop==0.2.3
