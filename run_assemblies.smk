@@ -88,7 +88,6 @@ rule run_seqsero2:
     output:
         seqsero_report = "typing/SeqSero2/{sample}_{assembler}_result.txt"
     shadow: "full"
-    conda: "typing_env"
     params:
         # input type: 2 is paired-end reads, 4 is assembly - do we want to tweak this?
         input_type = "4",
