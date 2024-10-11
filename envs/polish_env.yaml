@@ -1,0 +1,7 @@
+name: polish_env
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - bwa
+  - polypolish

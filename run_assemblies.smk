@@ -8,7 +8,7 @@ import snake_helpers
 input_data = pd.read_csv(config["infile"], sep="\t")
 
 ILM_ASSEMBLERS = {"skesa"}
-HYBRID_ASSEMBLERS = {"sf_unicycler"}  # , "lf_polypolish"}
+HYBRID_ASSEMBLERS = {"sf_unicycler", "lf_polypolish"}
 ALL_ASSEMBLERS = ILM_ASSEMBLERS.union(HYBRID_ASSEMBLERS)
 SEROTYPERS = {"seqsero2", "sistr"}
 
@@ -77,6 +77,76 @@ rule filter_ont:
     conda: pathlib.Path(workflow.current_basedir) / "nanopore_env.yaml"
     shell:
         """filtlong --keep_percent {params.keep_percent} "{input.reads_chopped}" | gzip > "{output.reads_filtered}" """
+
+rule assemble_nanopore_only:
+    input:
+        filtered_fastq ="reads/{sample}_filtered.fastq.gz"
+    output:
+        nanopore_assembly = temp("assembly/flye_{sample}/assembly.fasta")
+    params:
+        out_dir = lambda wildcards, output: str(pathlib.Path(output.nanopore_assembly).parent)
+    threads: workflow.cores / 2 if (workflow.cores / 2 ) < 16 else 16
+    log: "logs/assembly/flye_{sample}.log"
+    conda: pathlib.Path(workflow.current_basedir) / "nanopore_env.yaml"
+    shell:
+        """
+        flye --nano-raw "{input.filtered_fastq}" --out-dir "{params.out_dir}" \
+            --threads {threads} &> "{log}" || touch "{output.nanopore_assembly}"
+        """
+
+rule medaka_consensus:
+    input:
+        filtered_fastq ="reads/{sample}_filtered.fastq.gz",
+        flye_asm = "assembly/flye_{sample}/assembly.fasta"
+    output:
+        cleaned_asm = "assembly/flye_medaka/{sample}_flye_medaka.fna"
+    threads: 16  # TODO: does medaka consensus actually claim four extra threads
+    params:
+        output_basedir = lambda wildcards, output: str(pathlib.Path(output.cleaned_asm).parent),
+        snakemake_path = str(pathlib.Path(workflow.basedir).resolve()),
+        medaka_model = "r941_min_hac_g507" # best we have
+    log: "logs/assembly/medaka_{sample}.log"
+    shadow: "full" # has to run as shadow so it doesn't trample on itself
+    # only run this if we in fact have a sequence
+    shell:
+        """
+        if [ ! -s {input.flye_asm} ]; then
+            touch "{output.cleaned_asm}"
+        else
+            medaka_consensus -i "{input.filtered_fastq}" \
+            -d "{input.flye_asm}" \
+            -o "{params.output_basedir}" \
+            -m {params.medaka_model} \
+            -t {threads} -f > {log}
+            mv "{params.output_basedir}/consensus.fasta" "{output.cleaned_asm}"
+        fi
+        """
+
+
+rule map_ilm_to_flye_asm:
+    input:
+        ilm_reads = lambda wildcards: snake_helpers.get_reads_from_overview(wildcards.sample,
+        input_data,
+        wildcards.read_dir),
+        cleaned_asm ="assembly/flye_medaka/{sample}_flye_medaka.fna"
+    output:
+            alignment = "assembly/flye/{sample}_alignments_{read_dir}.sam"
+    conda: pathlib.Path(workflow.current_basedir) / "polish_env.yaml"
+    threads: 4
+    shell:
+        """bwa mem -t {threads} -a "{input.cleaned_asm}" "{input.ilm_reads}" > "{output.alignment}" """
+
+rule asm_polypolish:
+    input:
+        align_r1 = "assembly/flye/{sample}_alignments_r1.sam",
+        align_r2 = "assembly/flye/{sample}_alignments_r2.sam",
+        cleaned_asm = "assembly/flye_medaka/{sample}_flye_medaka.fna"
+    output:
+        polished = "assembly/lf_polypolish/{sample}_lf_polypolish.fna"
+    conda: pathlib.Path(workflow.current_basedir) / "polish_env.yaml"
+    shell:
+        """polypolish "{input.cleaned_asm}" "{input.align_r1}" "{input.align_r2}" > "{output.polished}" """
+
 
 
 rule assemble_short_read_first:
