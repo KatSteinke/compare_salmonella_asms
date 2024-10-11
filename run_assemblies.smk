@@ -15,7 +15,7 @@ SEROTYPERS = {"seqsero2"} #  {"seqsero", "seqsero2", "sistr"} TODO add again
 rule all:
     input:
         all_serotyped = expand("typing/{serotyper}/{sample}_{assembler}_result.txt", # we need to move the result
-        serotyper = SEROTYPERS, sample=input_data["sample_id"])
+        serotyper = SEROTYPERS, sample=input_data["sample"])
 
 # we're letting shovill do the trimming as in the article
 rule assemble_ilm:
