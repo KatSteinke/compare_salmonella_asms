@@ -10,7 +10,7 @@ input_data = pd.read_csv(config["infile"], sep="\t")
 ILM_ASSEMBLERS = {"skesa"}
 HYBRID_ASSEMBLERS = {"sf_unicycler"}  # , "lf_polypolish"}
 ALL_ASSEMBLERS = ILM_ASSEMBLERS.union(HYBRID_ASSEMBLERS)
-SEROTYPERS = {"seqsero2"} #  {"seqsero", "seqsero2", "sistr"} TODO add again
+SEROTYPERS = {"seqsero2", "sistr"}
 
 rule all:
     input:
@@ -97,12 +97,29 @@ rule run_seqsero2:
                            "{sample}" \
                            r"\t-\t-"
     threads: workflow.cores / 4 if (workflow.cores / 4) < 16 else 16
+    log: "logs/serotyping/{assembler}_{sample}_seqsero2.log"
     conda: pathlib.Path(workflow.current_basedir) / "seqsero2_env.yaml"
     resources:
         mem_mb = 500  # todo: better estimate
     shell:
         """
         SeqSero2_package.py -t {params.input_type} -m {params.workflow} -p {threads} \
-        -i {input.assembly} -d {params.output_dir} || printf "{params.placeholder_data}" > "{params.output_dir}/SeqSero_result.txt"
+        -i {input.assembly} -d {params.output_dir} &> "{log}" || printf "{params.placeholder_data}" > "{params.output_dir}/SeqSero_result.txt"
         mv "{params.output_dir}/SeqSero_result.txt" "{output.seqsero_report}"
+        """
+
+
+rule run_sistr:
+    input:
+        assembly="assembly/{assembler}/{sample}_{assembler}.fna"
+    output:
+        sistr_report ="typing/sistr/{sample}_{assembler}_result.txt"
+    threads: workflow.cores / 4 if (workflow.cores / 4) < 16 else 16
+    params:
+        output_format = "tab"
+    conda: pathlib.Path(workflow.current_basedir) / "sistr_env.yaml"
+    log: "logs/serotyping/{assembler}_{sample}_sistr.log"
+    shell:
+        """
+        sistr_cmd "{input.assembly}" -f {params.output_format} -o "{output.sistr_report}" -t {threads}  &> "{log}"
         """

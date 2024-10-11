@@ -1,0 +1,7 @@
+name: sistr_env
+channels:
+  - bioconda
+  - r
+  - conda-forge
+dependencies:
+  - sistr_cmd
