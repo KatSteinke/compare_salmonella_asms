@@ -124,13 +124,25 @@ rule medaka_consensus:
         fi
         """
 
+rule index_asm:
+    input:
+        cleaned_asm = "assembly/flye_medaka/{sample}_flye_medaka.fna"
+    output:
+        asm_index="assembly/flye_medaka/{sample}_flye_medaka.fai"
+    params:
+        asm_prefix = lambda wildcards, output: str(pathlib.Path(output.asm_index).with_suffix(""))
+    conda: pathlib.Path(workflow.current_basedir) / "envs" / "polish_env.yaml"
+    shell:
+        """bwa index "{input.cleaned_asm}" -p {params.asm_prefix} """
+
 
 rule map_ilm_to_flye_asm:
     input:
         ilm_reads = lambda wildcards: snake_helpers.get_reads_from_overview(wildcards.sample,
         input_data,
         wildcards.read_dir),
-        cleaned_asm ="assembly/flye_medaka/{sample}_flye_medaka.fna"
+        cleaned_asm ="assembly/flye_medaka/{sample}_flye_medaka.fna",
+        asm_index="assembly/flye_medaka/{sample}_flye_medaka.fai"
     output:
             alignment = "assembly/flye/{sample}_alignments_{read_dir}.sam"
     conda: pathlib.Path(workflow.current_basedir) / "envs"/"polish_env.yaml"
