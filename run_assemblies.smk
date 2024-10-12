@@ -15,7 +15,7 @@ SEROTYPERS = {"seqsero2", "sistr"}
 rule all:
     input:
         all_serotyped = expand("typing/{serotyper}/{sample}_{assembler}_result.txt", # we need to move the result
-        serotyper = SEROTYPERS, sample=input_data["sample"])
+        serotyper = SEROTYPERS, sample=input_data["sample"], assembler=ALL_ASSEMBLERS)
 
 # we're letting shovill do the trimming as in the article
 rule assemble_ilm:
@@ -183,6 +183,8 @@ rule run_seqsero2:
     output:
         seqsero_report = "typing/SeqSero2/{sample}_{assembler}_result.txt"
     shadow: "full"
+    wildcard_constraints:
+        assembler = "|".join(ALL_ASSEMBLERS)
     params:
         # input type: 2 is paired-end reads, 4 is assembly - do we want to tweak this?
         input_type = "4",
@@ -210,6 +212,8 @@ rule run_sistr:
     output:
         sistr_report ="typing/sistr/{sample}_{assembler}_result.txt"
     threads: workflow.cores / 4 if (workflow.cores / 4) < 16 else 16
+    wildcard_constraints:
+        assembler="|".join(ALL_ASSEMBLERS)
     params:
         output_format = "tab"
     conda: pathlib.Path(workflow.current_basedir) / "sistr_env.yaml"
