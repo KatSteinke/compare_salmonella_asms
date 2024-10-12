@@ -35,7 +35,7 @@ rule assemble_ilm:
     output:
         assembly = "assembly/{assembler}/{sample}_{assembler}.fna",
         log = "logs/assembly/{assembler}_{sample}.log" # ensure this is kept with shadow rule
-    shadow: "full"
+    shadow: "shallow"
     threads: workflow.cores / 2 if (workflow.cores / 2 ) < 16 else 16 # shovill can't handle more
     conda: pathlib.Path(workflow.current_basedir) / "envs"/ "assembly_env.yaml"
     shell:
@@ -88,6 +88,7 @@ rule assemble_nanopore_only:
     threads: workflow.cores / 2 if (workflow.cores / 2 ) < 16 else 16
     log: "logs/assembly/flye_{sample}.log"
     conda: pathlib.Path(workflow.current_basedir) / "envs"/ "nanopore_env.yaml"
+    shadow: "shallow"
     shell:
         """
         flye --nano-raw "{input.filtered_fastq}" --out-dir "{params.out_dir}" \
@@ -106,7 +107,7 @@ rule medaka_consensus:
         snakemake_path = str(pathlib.Path(workflow.basedir).resolve()),
         medaka_model = "r941_min_hac_g507" # best we have
     log: "logs/assembly/medaka_{sample}.log"
-    shadow: "full" # has to run as shadow so it doesn't trample on itself
+    shadow: "shallow" # has to run as shadow so it doesn't trample on itself
     conda: pathlib.Path(workflow.current_basedir) / "envs" / "medaka_env.yaml"
     # only run this if we in fact have a sequence
     shell:
@@ -166,7 +167,7 @@ rule assemble_short_read_first:
     threads: workflow.cores / 2
     conda: pathlib.Path(workflow.current_basedir) /"envs"/ "assembly_env.yaml"
     log: "logs/assembly/sf_unicycler_{sample}.log"
-    shadow: "full"  # need to have this because unicycler doesn't do output prefixes...
+    shadow: "shallow"  # need to have this because unicycler doesn't do output prefixes...
     shell:
         """
         unicycler -1 "{input.reads_r1}" -2 "{input.reads_r2}" --long "{input.reads_ont}" --threads {threads} \
