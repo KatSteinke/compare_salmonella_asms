@@ -1,7 +1,6 @@
-name: nanopore_env
+name: medaka_env
 channels:
   - bioconda
   - conda-forge
 dependencies:
-  - flye==2.5
-  - filtlong
+  - medaka==0.10.0

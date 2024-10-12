@@ -1,7 +1,6 @@
-name: nanopore_env
+name: porechop_env
 channels:
   - bioconda
   - conda-forge
 dependencies:
-  - flye==2.5
-  - filtlong
+  - porechop==0.2.3_seqan2.1.1

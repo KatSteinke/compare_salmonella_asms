@@ -62,7 +62,7 @@ rule trim_adapter:
             "extra")
     output:
         reads_chopped = "reads/{sample}_trim.fastq.gz"
-    conda: pathlib.Path(workflow.current_basedir) / "envs"/ "nanopore_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/ "porechop_env.yaml"  # their version of porechop doesn't play nice with the remaining nanopore env
     shell:
         """porechop -i "{input.reads_ont}" -o "{output.reads_chopped}" """
 
@@ -107,7 +107,7 @@ rule medaka_consensus:
         medaka_model = "r941_min_hac_g507" # best we have
     log: "logs/assembly/medaka_{sample}.log"
     shadow: "full" # has to run as shadow so it doesn't trample on itself
-    conda: pathlib.Path(workflow.current_basedir) / "envs" / "nanopore_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs" / "medaka_env.yaml"
     # only run this if we in fact have a sequence
     shell:
         """
