@@ -37,7 +37,7 @@ rule assemble_ilm:
         log = "logs/assembly/{assembler}_{sample}.log" # ensure this is kept with shadow rule
     shadow: "full"
     threads: workflow.cores / 2 if (workflow.cores / 2 ) < 16 else 16 # shovill can't handle more
-    conda: pathlib.Path(workflow.current_basedir) / "assembly_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/ "assembly_env.yaml"
     shell:
         """shovill --cpus {threads} \
             --R1 {input.reads_r1} \
@@ -62,7 +62,7 @@ rule trim_adapter:
             "extra")
     output:
         reads_chopped = "reads/{sample}_trim.fastq.gz"
-    conda: pathlib.Path(workflow.current_basedir) / "nanopore_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/ "nanopore_env.yaml"
     shell:
         """porechop -i "{input.reads_ont}" -o "{output.reads_chopped}" """
 
@@ -74,7 +74,7 @@ rule filter_ont:
         reads_filtered = "reads/{sample}_filtered.fastq.gz"
     params:
         keep_percent = 95
-    conda: pathlib.Path(workflow.current_basedir) / "nanopore_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/ "nanopore_env.yaml"
     shell:
         """filtlong --keep_percent {params.keep_percent} "{input.reads_chopped}" | gzip > "{output.reads_filtered}" """
 
@@ -87,7 +87,7 @@ rule assemble_nanopore_only:
         out_dir = lambda wildcards, output: str(pathlib.Path(output.nanopore_assembly).parent)
     threads: workflow.cores / 2 if (workflow.cores / 2 ) < 16 else 16
     log: "logs/assembly/flye_{sample}.log"
-    conda: pathlib.Path(workflow.current_basedir) / "nanopore_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/ "nanopore_env.yaml"
     shell:
         """
         flye --nano-raw "{input.filtered_fastq}" --out-dir "{params.out_dir}" \
@@ -107,6 +107,7 @@ rule medaka_consensus:
         medaka_model = "r941_min_hac_g507" # best we have
     log: "logs/assembly/medaka_{sample}.log"
     shadow: "full" # has to run as shadow so it doesn't trample on itself
+    conda: pathlib.Path(workflow.current_basedir) / "envs" / "nanopore_env.yaml"
     # only run this if we in fact have a sequence
     shell:
         """
@@ -131,7 +132,7 @@ rule map_ilm_to_flye_asm:
         cleaned_asm ="assembly/flye_medaka/{sample}_flye_medaka.fna"
     output:
             alignment = "assembly/flye/{sample}_alignments_{read_dir}.sam"
-    conda: pathlib.Path(workflow.current_basedir) / "polish_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/"polish_env.yaml"
     threads: 4
     shell:
         """bwa mem -t {threads} -a "{input.cleaned_asm}" "{input.ilm_reads}" > "{output.alignment}" """
@@ -143,7 +144,7 @@ rule asm_polypolish:
         cleaned_asm = "assembly/flye_medaka/{sample}_flye_medaka.fna"
     output:
         polished = "assembly/lf_polypolish/{sample}_lf_polypolish.fna"
-    conda: pathlib.Path(workflow.current_basedir) / "polish_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/"polish_env.yaml"
     shell:
         """polypolish "{input.cleaned_asm}" "{input.align_r1}" "{input.align_r2}" > "{output.polished}" """
 
@@ -163,7 +164,7 @@ rule assemble_short_read_first:
     output:
         outfile = "assembly/sf_unicycler/{sample}_sf_unicycler.fna"
     threads: workflow.cores / 2
-    conda: pathlib.Path(workflow.current_basedir) / "assembly_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) /"envs"/ "assembly_env.yaml"
     log: "logs/assembly/sf_unicycler_{sample}.log"
     shadow: "full"  # need to have this because unicycler doesn't do output prefixes...
     shell:
@@ -181,7 +182,7 @@ rule run_seqsero2:
     input:
         assembly  = "assembly/{assembler}/{sample}_{assembler}.fna"
     output:
-        seqsero_report = "typing/SeqSero2/{sample}_{assembler}_result.txt"
+        seqsero_report = "typing/seqsero2/{sample}_{assembler}_result.txt"
     shadow: "full"
     wildcard_constraints:
         assembler = "|".join(ALL_ASSEMBLERS)
@@ -189,13 +190,13 @@ rule run_seqsero2:
         # input type: 2 is paired-end reads, 4 is assembly - do we want to tweak this?
         input_type = "4",
         workflow = "k",
-        output_dir = "typing/SeqSero2",
+        output_dir = "typing/seqsero2",
         placeholder_data = r"Sample name\tPredicted identification\tPredicted serotype\n" \
                            "{sample}" \
                            r"\t-\t-"
     threads: workflow.cores / 4 if (workflow.cores / 4) < 16 else 16
     log: "logs/serotyping/{assembler}_{sample}_seqsero2.log"
-    conda: pathlib.Path(workflow.current_basedir) / "seqsero2_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) /"envs"/ "seqsero2_env.yaml"
     resources:
         mem_mb = 500  # todo: better estimate
     shell:
@@ -216,7 +217,7 @@ rule run_sistr:
         assembler="|".join(ALL_ASSEMBLERS)
     params:
         output_format = "tab"
-    conda: pathlib.Path(workflow.current_basedir) / "sistr_env.yaml"
+    conda: pathlib.Path(workflow.current_basedir) / "envs"/"sistr_env.yaml"
     log: "logs/serotyping/{assembler}_{sample}_sistr.log"
     shell:
         """
