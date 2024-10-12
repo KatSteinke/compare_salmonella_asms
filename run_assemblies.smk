@@ -221,5 +221,5 @@ rule run_sistr:
     log: "logs/serotyping/{assembler}_{sample}_sistr.log"
     shell:
         """
-        sistr_cmd "{input.assembly}" -f {params.output_format} -o "{output.sistr_report}" -t {threads}  &> "{log}"
+        sistr "{input.assembly}" -f {params.output_format} -o "{output.sistr_report}" -t {threads}  &> "{log}"
         """
